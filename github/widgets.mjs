@@ -8,6 +8,7 @@
  *   languages.svg  top languages as growing ASCII block bars
  *   streak.svg     a campfire that grows with your current contribution streak
  *   tide.svg       the last 26 weeks of contributions as a rolling ASCII sea
+ *   pond.svg       live koi pond: koi swim, flex and turn; more fish the more you contribute
  *
  * Daily data for streak/tide comes from the contributions.json written by github/garden.mjs
  * (run that first); repos/stars/languages come from the REST API. No dependencies; Node 18+.
@@ -268,6 +269,136 @@ function tideSVG(weeks, theme) {
   return frame(W, H, T, "26 weeks of contributions as a tide", out.join("\n"), style);
 }
 
+// ── 5. koi pond (live fish, SMIL-animated) ────────────────────
+// Each koi is a rigid-ish vector body that flexes between three poses while it follows a smooth closed
+// loop (animateMotion rotate="auto"), so it turns gracefully and can never fold through itself.
+function pondSVG(weeks, theme, link) {
+  const W = 880, H = 300, rnd = rng(login + "pond" + theme);
+  const dark = theme === "dark";
+  const recent = weeks.slice(-5).flat().reduce((a, b) => a + b, 0);
+  const nFish = Math.max(3, Math.min(9, 3 + Math.round(Math.sqrt(recent) / 2)));
+  const water = dark ? ["#0a2a2c", "#06181c"] : ["#5f9ea0", "#2f6f73"];
+  const VARIETIES = [
+    { name: "kohaku", base: "#f6f2ea", spots: ["#e2401c"] },
+    { name: "ogon", base: "#f4c24a", spots: [] , metal: true },
+    { name: "showa", base: "#1a1a1f", spots: ["#e2401c", "#f6f2ea"] },
+    { name: "sanke", base: "#f6f2ea", spots: ["#e2401c", "#1a1a1f"] },
+    { name: "tancho", base: "#f6f2ea", spots: [], cap: "#e2401c" },
+    { name: "asagi", base: "#7f9bb3", spots: ["#ef7f3a"], belly: true },
+    { name: "chagoi", base: "#9a6a42", spots: [] },
+    { name: "kujaku", base: "#e9edf0", spots: ["#f08a2e"], metal: true },
+    { name: "kohaku", base: "#f6f2ea", spots: ["#d93a18"] },
+  ];
+  // body outline (head at +x), three flex poses with identical command structure
+  const body = (b) => {
+    const t1 = 8 * b, t2 = 16 * b;
+    return `M 34 0 C 34 -9 22 -13 8 -12 C -6 ${-11 + t1 * 0.2} -18 ${-7 + t1 * 0.5} -30 ${-3 + t2 * 0.6} ` +
+           `L -30 ${3 + t2 * 0.6} C -18 ${7 + t1 * 0.5} -6 ${11 + t1 * 0.2} 8 12 C 22 13 34 9 34 0 Z`;
+  };
+  const tail = (b) => { const y = 16 * b * 0.6; return `M -29 ${-2 + y} C -40 ${-12 + y * 1.4} -50 ${-16 + y * 1.8} -56 ${-13 + y * 2} C -50 ${-4 + y * 1.8} -50 ${4 + y * 1.8} -56 ${13 + y * 2} C -50 ${16 + y * 1.8} -40 ${12 + y * 1.4} -29 ${2 + y} Z`; };
+  const out = [];
+  const defs = [];
+  // caustics: blurred light blobs drifting
+  const caus = [];
+  for (let i = 0; i < 14; i++) {
+    const x = r1(rnd() * W), y = r1(rnd() * H), r = r1(30 + rnd() * 60);
+    caus.push(`<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r1(r * 0.5)}" fill="${dark ? "#2f8c84" : "#c9f1e6"}" opacity="${dark ? 0.16 : 0.22}"><animate attributeName="cx" values="${x};${r1(x + 40 - rnd() * 80)};${x}" dur="${r1(14 + rnd() * 12)}s" repeatCount="indefinite"/><animate attributeName="opacity" values="${dark ? ".08;.2;.08" : ".12;.3;.12"}" dur="${r1(6 + rnd() * 6)}s" repeatCount="indefinite"/></ellipse>`);
+  }
+  out.push(`<g filter="url(#blur)">${caus.join("")}</g>`);
+  // pebble floor hint
+  const peb = [];
+  for (let i = 0; i < 90; i++) peb.push(`<ellipse cx="${r1(rnd() * W)}" cy="${r1(rnd() * H)}" rx="${r1(4 + rnd() * 9)}" ry="${r1(3 + rnd() * 6)}" fill="${dark ? "#0f3134" : "#4f8b8d"}" opacity=".55"/>`);
+  out.push(`<g>${peb.join("")}</g>`);
+  // ASCII ripples drifting across the surface
+  const rip = [];
+  for (let r = 0; r < 9; r++) {
+    const y = 30 + r * 31 + rnd() * 8;
+    let line = "";
+    for (let c = 0; c < 70; c++) line += rnd() < 0.18 ? (rnd() < 0.5 ? "~" : "-") : (rnd() < 0.12 ? "." : " ");
+    rip.push(`<text x="0" y="${r1(y)}" font-size="12" fill="${dark ? "#4fb3a8" : "#e6fff8"}" opacity=".35" xml:space="preserve">${line}<animateTransform attributeName="transform" type="translate" values="0 0;${r % 2 ? 14 : -14} 0;0 0" dur="${r1(7 + rnd() * 5)}s" repeatCount="indefinite"/></text>`);
+  }
+  out.push(`<g>${rip.join("")}</g>`);
+
+  // fish
+  for (let i = 0; i < nFish; i++) {
+    const v = VARIETIES[i % VARIETIES.length];
+    const sc = r1(0.8 + rnd() * 0.55);
+    // a smooth closed loop: Lissajous-ish, sampled and drawn as a Catmull-Rom → cubic path
+    const cx = 110 + rnd() * (W - 220), cy = 80 + rnd() * (H - 160);
+    const ax = 120 + rnd() * 220, ay = 50 + rnd() * 50, ph = rnd() * 6.28, k = 1 + Math.floor(rnd() * 2);
+    const pts = [];
+    const N = 16;
+    for (let j = 0; j < N; j++) {
+      const t = (j / N) * Math.PI * 2;
+      let x = cx + ax * Math.cos(t + ph) + 25 * Math.sin(t * 3 + i);
+      let y = cy + ay * Math.sin(k * t + ph * 0.7) + 15 * Math.cos(t * 2 + i);
+      x = Math.max(50, Math.min(W - 50, x)); y = Math.max(40, Math.min(H - 40, y));
+      pts.push([x, y]);
+    }
+    let d = `M ${r1(pts[0][0])} ${r1(pts[0][1])}`;
+    for (let j = 0; j < N; j++) {
+      const p0 = pts[(j - 1 + N) % N], p1 = pts[j], p2 = pts[(j + 1) % N], p3 = pts[(j + 2) % N];
+      d += ` C ${r1(p1[0] + (p2[0] - p0[0]) / 6)} ${r1(p1[1] + (p2[1] - p0[1]) / 6)} ${r1(p2[0] - (p3[0] - p1[0]) / 6)} ${r1(p2[1] - (p3[1] - p1[1]) / 6)} ${r1(p2[0])} ${r1(p2[1])}`;
+    }
+    const dur = r1(28 + rnd() * 26);
+    const wag = r1(0.9 + rnd() * 0.5);
+    const id = `k${i}`;
+    defs.push(`<clipPath id="${id}c"><path d="${body(0)}"><animate attributeName="d" values="${body(-0.5)};${body(0.5)};${body(-0.5)}" dur="${wag}s" repeatCount="indefinite"/></path></clipPath>`);
+    const spots = [];
+    v.spots.forEach((col, si) => {
+      for (let q = 0; q < 3; q++) spots.push(`<ellipse cx="${r1(-18 + rnd() * 44)}" cy="${r1((rnd() - 0.5) * 16)}" rx="${r1(6 + rnd() * 9)}" ry="${r1(4 + rnd() * 6)}" fill="${col}" opacity="${si === 0 ? 0.95 : 0.9}"/>`);
+    });
+    if (v.cap) spots.push(`<circle cx="22" cy="0" r="6.5" fill="${v.cap}"/>`);
+    if (v.belly) spots.push(`<rect x="-30" y="7" width="64" height="8" fill="#ef7f3a" opacity=".8"/><rect x="-30" y="-15" width="64" height="8" fill="#ef7f3a" opacity=".8"/>`);
+    const scales = v.name === "asagi" || v.name === "chagoi" || v.metal
+      ? `<g opacity=".25" stroke="${dark ? "#000" : "#333"}" stroke-width=".6" fill="none">${Array.from({ length: 6 }, (_, c) => `<path d="M ${-20 + c * 8} -10 q 4 5 0 10 q 4 5 0 10"/>`).join("")}</g>` : "";
+    const finCol = v.metal ? "#ffe2a0" : (v.name === "showa" ? "#3a3438" : "#eef0f2");
+    out.push(`<g opacity="${r1(0.88 + rnd() * 0.12)}">
+  <animateMotion dur="${dur}s" repeatCount="indefinite" rotate="auto" path="${d}"/>
+  <g transform="scale(${sc})">
+    <ellipse cx="6" cy="10" rx="34" ry="11" fill="#000" opacity=".22" transform="translate(6 10)"/>
+    <path d="${tail(0)}" fill="${finCol}" opacity=".7"><animate attributeName="d" values="${tail(-0.5)};${tail(0.5)};${tail(-0.5)}" dur="${wag}s" repeatCount="indefinite"/></path>
+    <g><path d="M 10 -10 C 4 -26 -6 -26 -4 -12 Z" fill="${finCol}" opacity=".6"><animateTransform attributeName="transform" type="rotate" values="-12 8 -10;14 8 -10;-12 8 -10" dur="${r1(wag * 1.7)}s" repeatCount="indefinite"/></path>
+       <path d="M 10 10 C 4 26 -6 26 -4 12 Z" fill="${finCol}" opacity=".6"><animateTransform attributeName="transform" type="rotate" values="12 8 10;-14 8 10;12 8 10" dur="${r1(wag * 1.7)}s" repeatCount="indefinite"/></path></g>
+    <g clip-path="url(#${id}c)">
+      <rect x="-40" y="-20" width="80" height="40" fill="${v.base}"/>
+      ${spots.join("")}${scales}
+      <rect x="-40" y="-20" width="80" height="40" fill="url(#bodyShade)"/>
+    </g>
+    <circle cx="27" cy="-5.5" r="1.7" fill="#111"/><circle cx="27" cy="5.5" r="1.7" fill="#111"/>
+    <path d="M 33 -2 q 5 -1 7 -5 M 33 2 q 5 1 7 5" stroke="${finCol}" stroke-width=".8" fill="none" opacity=".7"/>
+  </g>
+</g>`);
+  }
+
+  // lily pads with lotus, bobbing
+  const pads = [[130, 70, 34], [180, 100, 20], [720, 210, 38], [770, 175, 22], [660, 250, 18], [420, 40, 16]];
+  pads.forEach(([x, y, r], i) => {
+    const notch = r1(rnd() * 360);
+    const flower = i === 0 || i === 2;
+    out.push(`<g transform="translate(${x} ${y})"><g><animateTransform attributeName="transform" type="rotate" values="${notch};${r1(notch + 6)};${notch}" dur="${r1(9 + rnd() * 6)}s" repeatCount="indefinite"/>
+  <path d="M 0 0 L ${r} -4 A ${r} ${r} 0 1 0 ${r} 4 Z" fill="${dark ? "#2e6b2a" : "#4f9a42"}" stroke="${dark ? "#4a8a3a" : "#3c7a33"}" stroke-width="1"/>
+  ${Array.from({ length: 7 }, (_, k2) => `<line x1="0" y1="0" x2="${r1(Math.cos(0.5 + k2 * 0.8) * r * 0.9)}" y2="${r1(Math.sin(0.5 + k2 * 0.8) * r * 0.9)}" stroke="${dark ? "#3f8a38" : "#6db85c"}" stroke-width=".7"/>`).join("")}
+  </g>${flower ? `<g>${Array.from({ length: 8 }, (_, k2) => `<ellipse cx="0" cy="-9" rx="4.5" ry="10" fill="${k2 % 2 ? "#f7b3cc" : "#ef8fb3"}" transform="rotate(${k2 * 45})"/>`).join("")}${Array.from({ length: 6 }, (_, k2) => `<ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#fde2ec" transform="rotate(${k2 * 60 + 22})"/>`).join("")}<circle r="3.4" fill="#f6c945"/></g>` : ""}</g>`);
+  });
+  // drifting petals
+  for (let i = 0; i < 7; i++) {
+    const y = r1(30 + rnd() * (H - 60));
+    out.push(`<ellipse cx="0" cy="${y}" rx="3.5" ry="2" fill="#f5b7c9" opacity=".9"><animate attributeName="cx" values="-10;${W + 10}" dur="${r1(60 + rnd() * 50)}s" begin="-${r1(rnd() * 60)}s" repeatCount="indefinite"/></ellipse>`);
+  }
+  // caption
+  out.push(`<text x="20" y="${H - 16}" class="serif" font-size="15" fill="${dark ? "#e9e3d6" : "#fff"}" opacity=".9">pond</text>`);
+  out.push(`<text x="64" y="${H - 16}" font-size="10" fill="${dark ? "#8fb3ad" : "#eafff9"}" opacity=".9">${nFish} koi · ${recent} contribution${recent === 1 ? "" : "s"} in the last 5 weeks${link ? " · click to feed them ↗" : ""}</text>`);
+
+  const T = { bg: water };
+  return frame(W, H, T, `koi pond: ${nFish} koi`, `<defs>${defs.join("")}
+  <linearGradient id="bodyShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".28"/><stop offset=".35" stop-color="#fff" stop-opacity=".18"/><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient>
+  <radialGradient id="vig" cx=".5" cy=".5" r=".7"><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="${dark ? ".55" : ".3"}"/></radialGradient>
+</defs>
+${out.join("\n")}
+<rect width="${W}" height="${H}" rx="14" fill="url(#vig)"/>`);
+}
+
 // ── main ──────────────────────────────────────────────────────
 let D;
 try { D = args.demo ? demoData() : await liveData(); }
@@ -284,6 +415,7 @@ for (const theme of ["dark", "light"]) {
   put("languages", languagesSVG(D, theme));
   put("streak", streakSVG(S, theme));
   put("tide", tideSVG(C.weeks, theme));
+  put("pond", pondSVG(C.weeks, theme, args.link));
 }
 console.log(`✓ ${login}: ${D.repos.length} repos, ${D.stars}★, streak ${S.cur} (longest ${S.longest})${args.demo ? " (demo)" : ""}`);
 files.forEach((f) => console.log("  " + f));

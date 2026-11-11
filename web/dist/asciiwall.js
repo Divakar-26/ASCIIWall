@@ -4207,6 +4207,47 @@
   const AW = window.AsciiWall;
   AW.gardenDataUrl = AW.gardenDataUrl || "data/contributions.json";
 
+  // fireflies are shared with Firefly Meadow; define them here too so this scene stands alone
+  if (!AW.fireflySwarm) {
+    AW.fireflySwarm = (n) => Array.from({ length: n }, () => ({ x: (Math.random() - 0.5) * 1.6, y: Math.random() * 0.7 - 0.35, vx: 0, vy: 0, ph: Math.random() * 10, orbit: 0.08 + Math.random() * 0.22, dir: Math.random() < 0.5 ? -1 : 1, seed: Math.random() * 100 }));
+    AW.updateFireflies = function (flies, api, t, offset, yRange = [-0.4, 0.42]) {
+      const dt = Math.min(api.dt, 0.05), A = api.aspect, m = api.mouse, D = api.data;
+      flies.forEach((f, i) => {
+        let ax = Math.sin(t * 0.7 + f.seed) * 0.08, ay = Math.cos(t * 0.6 + f.seed * 2) * 0.06;
+        if (m.present) { const tx = m.px + Math.cos(t * 0.8 * f.dir + f.seed) * f.orbit - f.x, ty = m.py + Math.sin(t * 0.8 * f.dir + f.seed) * f.orbit * 0.8 - f.y; const w = m.on * Math.min(1, 0.25 / (Math.hypot(m.px - f.x, m.py - f.y) + 0.2)); ax += tx * 1.2 * w; ay += ty * 1.2 * w; }
+        if (f.x > A / 2 - 0.03) ax -= 0.4; if (f.x < -A / 2 + 0.03) ax += 0.4; if (f.y > yRange[1]) ay -= 0.4; if (f.y < yRange[0]) ay += 0.4;
+        f.vx = (f.vx + ax * dt) * Math.exp(-dt * 1.4); f.vy = (f.vy + ay * dt) * Math.exp(-dt * 1.4);
+        f.x += f.vx * dt; f.y += f.vy * dt; f.ph += dt;
+        const o = (offset + i) * 4; D[o] = f.x; D[o + 1] = f.y; D[o + 2] = 0.25 + Math.pow(0.5 + 0.5 * Math.sin(f.ph * 1.7 + f.seed), 3); D[o + 3] = 1;
+      });
+    };
+  }
+
+  // Where the data comes from, in order: the local server's live GitHub lookup for AW.githubUser,
+  // then data/contributions.json (written by the GitHub Action), then a clearly-labelled demo year.
+  function emitInfo(info) { AW.gardenInfo = info; window.dispatchEvent(new CustomEvent("asciiwall:garden", { detail: info })); }
+  AW.loadGarden = function (apply) {
+    const user = (AW.githubUser || "").trim();
+    const fromJson = () => fetch(AW.gardenDataUrl).then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (d && d.weeks && !d.demo) { apply(d); emitInfo({ user: d.user, total: total(d), source: "file" }); return true; }
+      return false;
+    }).catch(() => false);
+    if (typeof fetch !== "function") return;
+    if (user) {
+      emitInfo({ user, loading: true });
+      fetch(`/api/contributions?user=${encodeURIComponent(user)}`)
+        .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
+        .then(({ ok, j }) => {
+          if (ok && j.weeks) { apply(j); emitInfo({ user: j.user, total: total(j), source: "live" }); }
+          else throw new Error(j.error || "lookup failed");
+        })
+        .catch((e) => { fromJson().then((got) => { if (!got) emitInfo({ user, error: /bad username/.test(e.message) ? "that isn't a valid GitHub username" : "couldn't reach GitHub from here — run `npm run serve`", demo: true }); }); });
+    } else {
+      fromJson().then((got) => { if (!got) emitInfo({ demo: true }); });
+    }
+  };
+  const total = (d) => d.total ?? d.weeks.flat().reduce((a, b) => a + b, 0);
+
   function demoYear() {
     const weeks = [];
     const start = new Date(); start.setDate(start.getDate() - 52 * 7 - start.getDay());
@@ -4259,12 +4300,11 @@
     edges: 0.35,
     init(api) {
       const st = { flies: AW.fireflySwarm(10), t: 0, data: AW.gardenData || null, tooltip: null };
-      const apply = (d) => { st.data = d; api.setTexture(toTexture(d)); };
-      if (st.data) apply(st.data);
-      else {
-        apply(demoYear());
-        if (typeof fetch === "function") fetch(AW.gardenDataUrl).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.weeks) { AW.gardenData = d; apply(d); } }).catch(() => {});
-      }
+      const apply = (d) => { st.data = d; AW.gardenData = d; api.setTexture(toTexture(d)); };
+      AW.reloadGarden = () => AW.loadGarden(apply);
+      if (st.data && !st.data.demo) { apply(st.data); emitInfo(AW.gardenInfo || { user: st.data.user, total: total(st.data) }); }
+      else { apply(demoYear()); emitInfo({ demo: true }); }
+      AW.loadGarden(apply);
       return st;
     },
     update(st, api) {
@@ -4363,7 +4403,7 @@
         vec4 f = uData[i];
         if (f.w < 0.5) continue;
         vec2 d = (p - f.xy)*REF;
-        c += vec3(1.0,0.9,0.45)*exp(-dot(d,d)*0.5)*f.z*1.2 + vec3(0.4,0.36,0.1)*exp(-dot(d,d)*0.08)*f.z*0.1;
+        c += vec3(1.0,0.9,0.45)*exp(-dot(d,d)*2.2)*f.z*1.1 + vec3(0.4,0.36,0.1)*exp(-dot(d,d)*0.4)*f.z*0.06;
       }
       return shade(c);
     }

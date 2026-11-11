@@ -31,7 +31,9 @@ jobs:
       - name: Widgets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node github/widgets.mjs --user "${{ github.repository_owner }}" --out assets
+        run: >
+          node github/widgets.mjs --user "${{ github.repository_owner }}" --out assets
+          --link "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/?scene=koi"
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"

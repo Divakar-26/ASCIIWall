@@ -84,9 +84,26 @@ Setup:
 </a>
 ```
 
+### Live koi pond
+
+```html
+<a href="https://YOUR_USER.github.io/ASCIIWall/?scene=koi">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/YOUR_USER/ASCIIWall/main/assets/pond-light.svg">
+    <img alt="my koi pond" src="https://raw.githubusercontent.com/YOUR_USER/ASCIIWall/main/assets/pond.svg">
+  </picture>
+</a>
+```
+
+The koi animate right inside the README (SVG animation, no scripts); clicking opens the fully interactive pond where you can feed them.
+
+### Contribution garden in the app
+
+Open **tune** (`S`) and type your GitHub username: the garden grows from your real public contributions (fetched by `npm run serve`'s local server). On GitHub Pages it reads `web/data/contributions.json`, which the Action regrows daily.
+
 ### More widgets
 
-`github/widgets.mjs` writes four more animated cards (each with a `-light` twin), regrown daily by the same Action:
+`github/widgets.mjs` writes five more animated cards (each with a `-light` twin), regrown daily by the same Action:
 
 | | |
 |---|---|
@@ -94,6 +111,7 @@ Setup:
 | `assets/languages.svg` | your top languages as ASCII block bars with a sweeping glint |
 | `assets/streak.svg` | a campfire that grows with your current contribution streak |
 | `assets/tide.svg` | 26 weeks of contributions as a rolling ASCII sea |
+| `assets/pond.svg` | **live koi pond**: koi swim, flex and turn among lotus pads; more fish the more you contribute (last 5 weeks) |
 
 ```html
 <picture>

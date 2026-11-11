@@ -10,6 +10,7 @@ const { app, BrowserWindow, Tray, Menu, screen, ipcMain, nativeImage, dialog, sh
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const { spawn, spawnSync } = require("child_process");
 
 const WEB = path.join(__dirname, "..", "web");
 const INDEX = path.join(WEB, "index.html");
@@ -40,6 +41,48 @@ const uiState = () => ({ scene: state.scene, settings: state.settings });
 
 let tray = null, libraryWin = null, wallWins = [], cursorTimer = null, lastCursor = "";
 
+// Chromium's X11 layer fails to register the DESKTOP window-type atom ("Add _NET_WM_WINDOW_TYPE_DESKTOP to
+// kAtomsToCache"), so the hint never reaches the window manager and the wallpaper is a NORMAL window that covers
+// everything. We set the property ourselves with xprop BEFORE the window is shown, and read it back to be sure.
+// If that can't be confirmed we show nothing at all.
+function setDesktopType(w) {
+  try {
+    const id = "0x" + w.getNativeWindowHandle().readUInt32LE(0).toString(16);
+    spawnSync("xprop", ["-id", id, "-f", "_NET_WM_WINDOW_TYPE", "32a", "-set", "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DESKTOP"], { stdio: "ignore" });
+    const out = spawnSync("xprop", ["-id", id, "_NET_WM_WINDOW_TYPE"], { encoding: "utf8" }).stdout || "";
+    return /_NET_WM_WINDOW_TYPE_DESKTOP/.test(out);
+  } catch (e) { return false; }
+}
+async function desktopTypeFailed() {
+  await dialog.showMessageBox({
+    type: "info", title: "Wallpaper not started",
+    message: "Couldn't put the wallpaper on the desktop layer",
+    detail: "Nothing was drawn on your screen. Make sure xprop is installed:\n\n    sudo apt install x11-utils\n\nThen try again, or use: npm run safe",
+    buttons: ["OK"],
+  });
+}
+
+// ── X11: force "below everything" ────────────────────────────
+// Electron's type:"desktop" hint is ignored by some window managers (GNOME/Mutter included), which leaves
+// the wallpaper covering every app. wmctrl asks the window manager directly to keep it below all windows.
+function haveWmctrl() { return !spawnSync("wmctrl", ["-m"], { stdio: "ignore" }).error; }
+function pinBelow(w) {
+  if (w.isDestroyed()) return;
+  let xid;
+  try { xid = w.getNativeWindowHandle().readUInt32LE(0); } catch (e) { return; }
+  try {
+    spawn("wmctrl", ["-i", "-r", "0x" + xid.toString(16), "-b", "add,below,sticky,skip_taskbar,skip_pager"], { stdio: "ignore" }).on("error", () => {});
+  } catch (e) { /* ignore */ }
+}
+async function needWmctrl() {
+  await dialog.showMessageBox({
+    type: "info", title: "One small tool is missing",
+    message: "Install wmctrl so the wallpaper can stay behind your windows",
+    detail: "Open a terminal and run:\n\n    sudo apt install wmctrl\n\nThen start ASCIIWall again. (Nothing was drawn on your desktop.)",
+    buttons: ["OK"],
+  });
+}
+
 // ── wallpaper windows ────────────────────────────────────────
 function startWallpaper() {
   stopWallpaper();
@@ -49,14 +92,26 @@ function startWallpaper() {
     const b = d.bounds;
     const w = new BrowserWindow({
       x: b.x, y: b.y, width: b.width, height: b.height,
-      type: "desktop", frame: false, show: false, skipTaskbar: true, resizable: false, movable: false,
-      minimizable: false, maximizable: false, fullscreenable: false, hasShadow: false, focusable: false,
+      type: process.platform === "linux" ? undefined : "desktop", frame: false, show: false, skipTaskbar: true, resizable: false, movable: false,
+      minimizable: false, maximizable: false, fullscreenable: false, hasShadow: false,
+      // Linux: focusable:false makes Electron bypass the window manager entirely (override-redirect), which pins the
+      // window ABOVE everything on all workspaces. That was the "everything is covered" bug.
+      focusable: process.platform === "linux",
       enableLargerThanScreen: true, backgroundColor: "#07080c",
       webPreferences: { preload: PRELOAD, backgroundThrottling: false, contextIsolation: true },
     });
+    if (process.platform === "linux" && !setDesktopType(w)) {
+      stopWallpaper(); w.destroy(); state.wallpaper = false; saveState(); refreshTray(); desktopTypeFailed(); return;
+    }
     w.displayBounds = b;
     w.loadFile(INDEX, { query: { mode: "wallpaper" } });
-    w.once("ready-to-show", () => { w.setBounds(b); w.showInactive(); });
+    w.once("ready-to-show", () => {
+      w.setBounds(b); w.showInactive();
+      if (process.platform === "linux") {
+        w.setVisibleOnAllWorkspaces(true);
+        for (const ms of [0, 300, 1200, 3000]) setTimeout(() => pinBelow(w), ms);
+      }
+    });
     if (process.platform === "darwin") w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
     w.on("closed", () => { wallWins = wallWins.filter((x) => x !== w); });
     wallWins.push(w);
