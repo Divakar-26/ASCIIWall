@@ -1,0 +1,41 @@
+# Regrows the contribution garden every day:
+#   assets/garden.svg, assets/garden-light.svg  → embed in any README
+#   assets/{sky,languages,streak,tide}(-light).svg → more README widgets
+#   web/data/contributions.json                 → the live, interactive garden scene on GitHub Pages
+name: Contribution garden
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  grow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Grow
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          node github/garden.mjs
+          --user "${{ github.repository_owner }}"
+          --out web/data --svg-out assets
+          --link "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/?scene=garden"
+      - name: Widgets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node github/widgets.mjs --user "${{ github.repository_owner }}" --out assets
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets web/data
+          git diff --cached --quiet || git commit -m "Grow the contribution garden"
+          git push

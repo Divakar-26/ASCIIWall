@@ -1,0 +1,12 @@
+{
+  "AppVersion": "1.0.0.0",
+  "Title": "ASCIIWall",
+  "Desc": "Live, interactive ASCII-art wallpapers. Change scenes and settings in the ASCIIWall app or by opening index.html.",
+  "Author": "ASCIIWall",
+  "License": "MIT",
+  "Contact": "",
+  "Type": 1,
+  "FileName": "wallpaper.html",
+  "Arguments": null,
+  "IsAbsolutePath": false
+}

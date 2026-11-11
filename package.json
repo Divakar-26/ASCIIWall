@@ -1,0 +1,51 @@
+{
+  "name": "asciiwall",
+  "productName": "ASCIIWall",
+  "version": "1.0.0",
+  "description": "Live, interactive ASCII-art wallpapers: desktop, browser, mobile (PWA), embeddable, and a GitHub contribution garden.",
+  "main": "desktop/main.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node tools/electron.mjs",
+    "library": "node tools/electron.mjs --library --no-wallpaper",
+    "smoke": "node tools/electron.mjs --smoke",
+    "serve": "node tools/serve.mjs",
+    "bundle": "node tools/bundle.mjs",
+    "garden": "node github/garden.mjs",
+    "garden:demo": "node github/garden.mjs --demo --user you --out web/data --svg-out assets",
+    "widgets": "node github/widgets.mjs",
+    "widgets:demo": "node github/widgets.mjs --demo --user you --out assets",
+    "dist": "npm run bundle && electron-builder",
+    "safe": "node tools/electron.mjs --safe --library"
+  },
+  "devDependencies": {
+    "electron": "^41.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "dev.asciiwall.app",
+    "files": [
+      "desktop/**",
+      "web/**",
+      "!web/test/**",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Graphics",
+      "icon": "web/icons/icon-512.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.entertainment",
+      "icon": "web/icons/icon-512.png"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "web/icons/icon-512.png"
+    }
+  }
+}

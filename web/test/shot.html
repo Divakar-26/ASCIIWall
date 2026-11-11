@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#000}canvas{width:100vw;height:100vh;display:block}#log{position:fixed;top:0;left:0;color:#f55;font:12px monospace;margin:0;white-space:pre-wrap}</style></head>
+<body><canvas id="c"></canvas><pre id="log"></pre>
+<script>
+const LOG = (s) => { document.getElementById("log").textContent += s + "\n"; };
+window.onerror = (m, s, l) => LOG(m + " @" + s + ":" + l);
+const _ce = console.error; console.error = (...a) => { LOG(a.map(String).join(" ").slice(0, 4000)); _ce(...a); };
+</script>
+<script src="../js/glyphs.js"></script><script src="../js/engine.js"></script>
+<script>
+const q = new URLSearchParams(location.search);
+const scenes = (q.get('scenes') || 'koi').split(',');
+let n = 0;
+scenes.forEach(s => { const el = document.createElement('script'); el.src = '../js/scenes/' + s + '.js'; el.onload = () => { if (++n === scenes.length) go(); }; document.body.appendChild(el); });
+function go() {
+  try {
+    const e = new AsciiWall.Engine(document.getElementById('c'), { scene: q.get('scene') || scenes[0], preserve: true, settings: { density: +(q.get('dens') || 1), edges: q.get('dens') ? 0 : 1, raw: !!q.get('raw') } });
+    window.E = e;
+    if (q.get('mx')) e.pointer(+q.get('mx'), +q.get('my'), true);
+    e.warmup(+(q.get('t') || 4));
+    if (q.get('mx')) { for (let i = 0; i < 30; i++) { e.pointer(+q.get('mx') + i * 0.006, +q.get('my') + Math.sin(i * 0.3) * 0.01, true); e.step(1 / 30); } }
+    if (q.get('click')) { e.click(+q.get('mx'), +q.get('my')); for (let i = 0; i < 20; i++) e.step(1 / 30); }
+    e.render();
+    if (q.get('px')) { const gl=e.gl; const b=new Uint8Array(4*e.w*e.h); gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.readPixels(0,0,e.w,e.h,gl.RGBA,gl.UNSIGNED_BYTE,b); let s=0; for(let i=0;i<b.length;i+=4) s+=b[i]+b[i+1]+b[i+2]; LOG('avg '+(s/(b.length/4)/3).toFixed(2)); }
+    if (q.get('img')) { const im=new Image(); im.src=e.canvas.toDataURL(); im.style.cssText='position:fixed;inset:0;width:100vw;height:100vh'; document.body.appendChild(im); }
+    if (q.get('info')) LOG(`cols ${e.cols} rows ${e.rows} cell ${e.cell} sim ${e.simOK}`);
+  } catch (err) { LOG('ERR ' + err.message + '\n' + err.stack); }
+  document.title = 'done';
+}
+</script></body></html>

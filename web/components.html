@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ASCIIWall Components</title>
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <style>
+    :root { --bg:#07080c; --ink:#e9e3d6; --dim:#8c877c; --line:rgba(233,227,214,.12); --accent:#f2c27b;
+            --mono:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace; --serif:"Iowan Old Style",Palatino,Georgia,serif; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:13px/1.6 var(--mono); }
+    main { max-width: 1080px; margin: 0 auto; padding: 56px 16px 80px; }
+    h1 { font: 400 44px/1.05 var(--serif); margin: 0 0 10px; letter-spacing:-.02em; }
+    h2 { font: 400 22px/1.2 var(--serif); margin: 48px 0 12px; }
+    p { color: var(--dim); max-width: 64ch; }
+    a { color: var(--accent); }
+    ascii-wall { border-radius: 14px; border: 1px solid var(--line); }
+    .hero { height: 420px; margin-top: 28px; }
+    .row { display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .row ascii-wall { height: 220px; }
+    pre { background:#0d0d11; border:1px solid var(--line); border-radius:12px; padding:16px; overflow:auto; color:#d8d1c2; font-size:12px; }
+    .pick { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+    .pick button { background:none; border:1px solid var(--line); color:var(--dim); border-radius:99px; padding:4px 11px; font:inherit; cursor:pointer; }
+    .pick button.on, .pick button:hover { color:var(--accent); border-color:var(--accent); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ascii-wall</h1>
+  <p>Embed any ASCIIWall scene on your site, your GitHub Pages portfolio or your docs. It's one script tag and one element. Every scene is live and reacts to the cursor or touch, and it pauses itself while it's off-screen.</p>
+
+  <ascii-wall id="hero" class="hero" scene="koi"></ascii-wall>
+  <div class="pick" id="pick"></div>
+
+  <h2>Use it</h2>
+<pre>&lt;script src="https://YOUR_USER.github.io/ASCIIWall/dist/asciiwall.js"&gt;&lt;/script&gt;
+
+&lt;ascii-wall scene="tide" style="height:360px"&gt;&lt;/ascii-wall&gt;
+
+&lt;!-- options --&gt;
+&lt;ascii-wall scene="hearth" density="1.4" glow="1.2" tint="amber" fps="30"&gt;&lt;/ascii-wall&gt;
+&lt;ascii-wall scene="garden" contributions="data/contributions.json"&gt;&lt;/ascii-wall&gt;</pre>
+
+  <h2>A few at once</h2>
+  <div class="row">
+    <ascii-wall scene="meadow"></ascii-wall>
+    <ascii-wall scene="jelly"></ascii-wall>
+    <ascii-wall scene="garden"></ascii-wall>
+  </div>
+  <p style="margin-top:28px">Want a full screen of it? Open <a href="index.html">the app</a>.</p>
+</main>
+<script src="dist/asciiwall.js"></script>
+<script>
+  const hero = document.getElementById("hero"), pick = document.getElementById("pick");
+  AsciiWall.scenes.forEach((s) => {
+    const b = document.createElement("button");
+    b.textContent = s.name; b.className = s.id === "koi" ? "on" : "";
+    b.onclick = () => { hero.setAttribute("scene", s.id); pick.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); };
+    pick.appendChild(b);
+  });
+</script>
+</body>
+</html>
