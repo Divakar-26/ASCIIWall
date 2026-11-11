@@ -167,12 +167,12 @@ function languagesSVG(D, theme) {
   const T = THEMES[theme], W = 495;
   const entries = Object.entries(D.langs).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const sum = entries.reduce((a, [, v]) => a + v, 0) || 1;
-  const H = 62 + entries.length * 24;
+  const H = 195;                                     // same height as the sky/streak cards so they pair up
   const colors = theme === "dark" ? ["#f2c27b", "#e8836b", "#9fd39a", "#8fb8ff", "#c79bf2", "#f3a6c8"] : ["#b06d1c", "#c0452a", "#3f8a3a", "#2f63b0", "#7a4bb0", "#b04a7a"];
   const out = [`<text x="24" y="36" class="serif" font-size="18" fill="${T.text}">languages</text>`, `<text x="${W - 24}" y="36" font-size="10" fill="${T.dim}" text-anchor="end">by repository</text>`];
   const barX = 140, barW = 270, cells = 34, cw = barW / cells;
   entries.forEach(([name, v], i) => {
-    const y = 66 + i * 24, pct = v / sum, n = Math.max(1, Math.round(pct * cells));
+    const y = 66 + i * 21, pct = v / sum, n = Math.max(1, Math.round(pct * cells));
     out.push(`<text x="24" y="${y}" font-size="12" fill="${T.text}">${esc(name.length > 14 ? name.slice(0, 13) + "…" : name)}</text>`);
     out.push(`<text x="${barX}" y="${y}" font-size="12" fill="${T.faint}">${"░".repeat(cells)}</text>`);
     const full = "█".repeat(Math.max(0, n - 2)) + (n > 1 ? "▓" : "") + "▒";
@@ -233,10 +233,10 @@ function streakSVG(S, theme) {
 
 // ── 4. activity tide ──────────────────────────────────────────
 function tideSVG(weeks, theme) {
-  const T = THEMES[theme], W = 495, H = 170;
+  const T = THEMES[theme], W = 495, H = 195;
   const wk = weeks.slice(-26).map((d) => d.reduce((a, b) => a + b, 0));
   const max = Math.max(1, ...wk);
-  const cols = 52, cw = (W - 48) / cols, rowsN = 9, rh = 10, base = H - 22;
+  const cols = 52, cw = (W - 48) / cols, rowsN = 11, rh = 10, base = H - 24;
   // two copies side by side scrolled together for a seamless loop
   const layer = (offset) => {
     const parts = [];
