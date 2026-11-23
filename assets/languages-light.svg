@@ -31,7 +31,7 @@
 <text x="140" y="108" font-size="12" fill="#d8cdb8">░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░</text>
 <text x="140" y="108" font-size="12" fill="#3f8a3a">█▓▒</text>
 <rect class="glint" x="140" y="98" width="18" height="12" fill="url(#glint)" style="animation-delay:0.7s"/>
-<text x="471" y="108" font-size="12" fill="#857a66" text-anchor="end">9.5%</text>
+<text x="471" y="108" font-size="12" fill="#857a66" text-anchor="end">9.6%</text>
 <text x="24" y="129" font-size="12" fill="#3d362c">GDScript</text>
 <text x="140" y="129" font-size="12" fill="#d8cdb8">░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░</text>
 <text x="140" y="129" font-size="12" fill="#2f63b0">▓▒</text>
