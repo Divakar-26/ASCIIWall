@@ -180,6 +180,6 @@
 <ellipse cx="0" cy="260.4" rx="3.5" ry="2" fill="#f5b7c9" opacity=".9"><animate attributeName="cx" values="-10;890" dur="91s" begin="-25.7s" repeatCount="indefinite"/></ellipse>
 <ellipse cx="0" cy="65.8" rx="3.5" ry="2" fill="#f5b7c9" opacity=".9"><animate attributeName="cx" values="-10;890" dur="99.2s" begin="-53.5s" repeatCount="indefinite"/></ellipse>
 <text x="20" y="284" class="serif" font-size="15" fill="#fff" opacity=".9">pond</text>
-<text x="64" y="284" font-size="10" fill="#eafff9" opacity=".9">8 koi · 83 contributions in the last 5 weeks · click to feed them ↗</text>
+<text x="64" y="284" font-size="10" fill="#eafff9" opacity=".9">8 koi · 86 contributions in the last 5 weeks · click to feed them ↗</text>
 <rect width="880" height="300" rx="14" fill="url(#vig)"/>
 </svg>
